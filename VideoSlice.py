@@ -4,6 +4,8 @@ import numpy as np
 import time
 import os
 
+#일단은 정보 저장용
+
 def videoSlice(cut, videoFile):
     start = time.time()  # 시작 시간 저장
     pathDir = './video'
