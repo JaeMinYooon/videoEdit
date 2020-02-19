@@ -214,7 +214,7 @@ def cutPerson(x, img):
     img_cut = img[y:y+h, x:x+w]
 
     global personNum
-    path = "./cuttedperson/person" +str(personNum)+".png"
+    path = "./cuttedperson/person" +str(personNum)+".jpg"
     cutUpperBody(img_cut,"./cuttedupper/upper" +str(personNum)+".jpg")
     cutLowerBody(img_cut,"./cuttedlower/lower" +str(personNum)+".jpg")
     cv2.imwrite(path,img_cut)
