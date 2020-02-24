@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 
-
+# 후에 조금더 수정이 필요함
 hsv = 0
 lower1 = 0
 upper1 = 0
