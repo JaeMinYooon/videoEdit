@@ -217,8 +217,17 @@ def cutPerson(x, img):
     path = "./cuttedperson/person" +str(personNum)+".jpg"
     cutUpperBody(img_cut,"./cuttedupper/upper" +str(personNum)+".jpg")
     cutLowerBody(img_cut,"./cuttedlower/lower" +str(personNum)+".jpg")
+    cutHead(img_cut,"./cuttedhead/head" +str(personNum)+".jpg")  #재민 실험용 나중에 할땐 없애도록 시간낭비만 함
     cv2.imwrite(path,img_cut)
     personNum += 1
+
+def cutHead(img, path):
+    img_h = img.shape[0]
+    img_w = img.shape[1]
+    cutToHead = img
+    cutToHead = cv2.resize(cutToHead, dsize=(16, 16), interpolation=cv2.INTER_AREA)
+    path = path
+    cv2.imwrite(path, cutToHead)
 
 def cutUpperBody(img,path):
     img_h = img.shape[0]
