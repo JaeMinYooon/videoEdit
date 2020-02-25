@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 
 # 후에 조금더 수정이 필요함
+# 범위 조정이 필요할듯 흰색을 못찾는 기분 + 빨강색과 피부색을 같이 섞어버림
 hsv = 0
 lower1 = 0
 upper1 = 0
