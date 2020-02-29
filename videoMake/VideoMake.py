@@ -225,7 +225,7 @@ def cutHead(img, path):
     img_h = img.shape[0]
     img_w = img.shape[1]
     cutToHead = img
-    cutToHead = cv2.resize(cutToHead, dsize=(16, 16), interpolation=cv2.INTER_AREA)
+    #cutToHead = cv2.resize(cutToHead, dsize=(16, 16), interpolation=cv2.INTER_AREA)
     path = path
     cv2.imwrite(path, cutToHead)
 
