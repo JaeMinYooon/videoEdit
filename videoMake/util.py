@@ -95,7 +95,7 @@ def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA=True):
     return prediction
 
 
-def write_results(prediction, confidence, num_classes, nms_conf=0.4):
+def write_results(prediction, kind, confidence, num_classes, nms_conf=0.4):
     conf_mask = (prediction[:, :, 4] > confidence).float().unsqueeze(2)
     k = prediction
     prediction = prediction * conf_mask
@@ -141,6 +141,10 @@ def write_results(prediction, confidence, num_classes, nms_conf=0.4):
 
         for cls in img_classes:
             # perform NMS
+
+            # 재원 수정 : 0이 사람인데 사람 아니면 걸러 ★★★★★★★★★
+            if cls.int() != kind:
+                continue
 
             # get the detections with one particular class
             cls_mask = image_pred_ * (image_pred_[:, -1] == cls).float().unsqueeze(1)

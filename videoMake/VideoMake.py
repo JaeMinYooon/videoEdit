@@ -13,12 +13,24 @@ from videoMake.darknet import Darknet
 import pickle as pkl
 import pandas as pd
 import random
+from ex1 import *
 
 personNum = 1
 classes = load_classes("videoMake/data/coco.names")
+hexCode=""
 
-def videoMake(videofile):
-    i = 0
+def videoMake(exStr):
+    # kind에따라 찾을 물체를 정함. (ex :  person=0, dog=16)
+    kind = 0
+    inputString = exStr.split(',')
+    if inputString[0] == "person":
+        kind = 0
+    if inputString[0] == "dog":
+        kind = 16
+    global hexCode
+    hexCode = inputString[3]
+    videofile = inputString[len(inputString)-1]
+
     num_classes = 80
     bs = 1
     confidence = 0.5
@@ -54,15 +66,6 @@ def videoMake(videofile):
 
     # Detection phase
 
-    '''
-    # 재원 수정
-    videofile = "../sliceresult/video"+ str(i) + ".mp4"
-    # 파일 있는지 확인하고 없으면 3초씩 잠 슬라이스가 엄청빠르진 않아서 3초로 해놨음
-    while True:
-        if os.path.isfile(videofile):
-            break
-        time.sleep(3)
-'''
     print(videofile)
 
     cap = cv2.VideoCapture(videofile)
@@ -125,7 +128,7 @@ def videoMake(videofile):
 
                 with torch.no_grad():
                     output = model(Variable(img, volatile=True), CUDA)
-                output = write_results(output, confidence, num_classes, nms_conf=nms_thesh)
+                output = write_results(output, kind, confidence, num_classes, nms_conf=nms_thesh)
 
                 if type(output) == int:
                     frameCount += 1
@@ -151,8 +154,10 @@ def videoMake(videofile):
 
                 classes = load_classes('videoMake/data/coco.names')
                 colors = pkl.load(open("videoMake/pallete", "rb"))
+
                 # 사람이미지 자르는데 이건 모든프레임 필요x 1/6 마다 추출
-                list(map(lambda x: cutPerson(x, frame), output))
+                what = list(map(lambda x: cutPerson(x, frame), output))
+
 
             else:
                 yoloCountingCheck += 1
@@ -160,7 +165,11 @@ def videoMake(videofile):
                 yoloCounting %= 5
 
             # 얘는 욜로 결과 그리는건데 모든 프레임에 결과 있어야함.
-            list(map(lambda x: write(x, frame), output))
+            for i, out in enumerate(output):
+                if what[i]:
+                    write(out, frame)
+
+
 
             #cv2.imshow("frame", frame)  # 화면 보여주는 곳
             framesForVideo.append(frame)
@@ -202,7 +211,6 @@ def write(x, results):
     cv2.putText(img, label, (c1[0], c1[1]), cv2.FONT_ITALIC, 0.3, [225, 255, 255], 1);
     return img
 
-
 # 이미지에서 좌표로 박스 자름
 def cutPerson(x, img):
     c1 = tuple(x[1:3].int())
@@ -215,32 +223,32 @@ def cutPerson(x, img):
 
     global personNum
     path = "./cuttedperson/person" +str(personNum)+".jpg"
-    cutUpperBody(img_cut,"./cuttedupper/upper" +str(personNum)+".jpg")
+    b = cutUpperBody(img_cut,"./cuttedupper/upper" +str(personNum)+".jpg")
+
+    if not b:
+        return False
+
     cutLowerBody(img_cut,"./cuttedlower/lower" +str(personNum)+".jpg")
-    cutHead(img_cut,"./cuttedhead/head" +str(personNum)+".jpg")  #재민 실험용 나중에 할땐 없애도록 시간낭비만 함
     cv2.imwrite(path,img_cut)
     personNum += 1
-
-def cutHead(img, path):
-    img_h = img.shape[0]
-    img_w = img.shape[1]
-    cutToHead = img
-    #cutToHead = cv2.resize(cutToHead, dsize=(16, 16), interpolation=cv2.INTER_AREA)
-    path = path
-    cv2.imwrite(path, cutToHead)
+    return b
 
 def cutUpperBody(img,path):
     img_h = img.shape[0]
     img_w = img.shape[1]
     cutToUpper = img[int((img_h/10)*1): int((img_h/10)*6), : img_w]
-    path = path
+    global hexCode
+    find = color(hexCode ,cutToUpper)
+    if not find:
+        return False
     cv2.imwrite(path, cutToUpper)
+    #print("True")
+    return True
 
 def cutLowerBody(img,path):
     img_h = img.shape[0]
     img_w = img.shape[1]
     cutToUpper = img[int((img_h / 10) * 5): img_h, : img_w]
-    path = path
     cv2.imwrite(path, cutToUpper)
 
 # 영상 중간중간 yolo 결과로 저장 하는 메소드
@@ -251,7 +259,7 @@ def stepFrameToVideo(inputs, start, end, step, fps=25, pathDir="./yoloresult"):
     pathOut = pathDir + '/yoloed_' + str(step) + '.mp4'
     #pathOut = pathDir + '/yoloed_' + str(step) + '.avi'
     #out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
-    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'X264'), fps, size)
+    out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)
     count = start
     while count < end:
         out.write(inputs[count])
@@ -260,8 +268,11 @@ def stepFrameToVideo(inputs, start, end, step, fps=25, pathDir="./yoloresult"):
 def frameToWholeVideo(inputs, fps=25, pathDir="./yoloresult"):
     height, width, layers = inputs[0].shape
     size = (width, height)
-    pathOut = pathDir + '/yoloVideo.avi'
-    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
+
+    pathOut = pathDir + '/yoloVideo.mp4'
+    #pathOut = pathDir + '/yoloVideo.avi'
+    #out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
+    out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)
     for i in range(len(inputs)):
         # writing to a image array
         out.write(inputs[i])
