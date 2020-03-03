@@ -1,7 +1,9 @@
 import cv2
 import numpy as np
 import sys
-
+import threading
+complete = [0]
+lock = threading.Lock()
 def main():
     color()
 
@@ -10,7 +12,7 @@ def hex_to_hsv(hexCode):
     #h = input('hex값 입력: ').lstrip('#')
     h = hexCode
     bgr = tuple(int(h[i:i+2], 16) for i in (4, 2, 0))
-    print(bgr)
+    #print(bgr)
     bgr_split = str(bgr).split(', ')
 
     # 값 쪼개기
@@ -29,9 +31,9 @@ def hex_to_hsv(hexCode):
 def color(hexCode="00688B",cutImage=""):
 
     hsv = hex_to_hsv(hexCode)# hex값 넣을 곳
-    print("h = " + str(hsv[0][0][0]))
+    '''print("h = " + str(hsv[0][0][0]))
     print("s = " + str(hsv[0][0][1]))
-    print("v = " + str(hsv[0][0][2]))
+    print("v = " + str(hsv[0][0][2]))'''
     h = int(hsv[0][0][0])
     s = int(hsv[0][0][1])
     v = int(hsv[0][0][2])
@@ -48,12 +50,18 @@ def color(hexCode="00688B",cutImage=""):
         lower = np.array([0, 0, v])  # 직접 넣을 때 사용 할 코드
         upper = np.array([0, 0, v])
     else:
-        lower = np.array([h-10, 100, 100]) # hsv값 뽑은 거 이용 할 코드
-        upper = np.array([h+10, 255, 255])
+        lower = np.array([h-20, 40, 40]) # hsv값 뽑은 거 이용 할 코드
+        upper = np.array([h+20, 255, 255])
 
     mask = cv2.inRange(hsv, lower, upper)
     p = percent(mask)
     #print("percent  :  " , p)
+    if p >= 20:
+        return True
+    else:
+        return False
+
+
 
     new_img = cv2.bitwise_and(img, img, mask=mask)
 
@@ -66,11 +74,7 @@ def color(hexCode="00688B",cutImage=""):
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    print("percent " +str(p))
-    if p >= 40:
-        return True
-    else:
-        return False
+    #print("percent " +str(p))
 
 def percent(mask):
     img_h = mask.shape[0]
@@ -78,8 +82,8 @@ def percent(mask):
 
     detectMask = mask[int((img_h / 6) * 1): int((img_h / 6) * 4), int((img_w / 6) * 1): int((img_w / 6) * 5)]
     detectRes = np.count_nonzero(detectMask == 255)
-    print("res : " , detectRes)
+    #print("res : " , detectRes)
     total = detectMask.shape[0] * detectMask.shape[1]
-    print("total : ", total)
+    #print("total : ", total)
     return int( (detectRes / total) * 100)
 #main()

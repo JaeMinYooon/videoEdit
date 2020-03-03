@@ -15,28 +15,33 @@ import pandas as pd
 import random
 from ex1 import *
 
+#from Main import complete,lock
+
 personNum = 1
 classes = load_classes("videoMake/data/coco.names")
-hexCode=""
+upperHexCode= ""
+lowerHexCode= ""
 
-def videoMake(exStr):
+def videoMake(exStr, model):
     # kind에따라 찾을 물체를 정함. (ex :  person=0, dog=16)
     kind = 0
-    inputString = exStr.split(',')
+    inputString = exStr.split('&')
     if inputString[0] == "person":
         kind = 0
     if inputString[0] == "dog":
         kind = 16
-    global hexCode
-    hexCode = inputString[3]
+
+    global upperHexCode
+    upperHexCode = inputString[3]
+    global lowerHexCode
+    lowerHexCode = inputString[4]
+
     videofile = inputString[len(inputString)-1]
 
     num_classes = 80
     bs = 1
     confidence = 0.5
     nms_thresh = 0.4
-    cfgfile = "videoMake/cfg/yolov3.cfg"
-    weightsfile = "videoMake/cfg/yolov3.weights"
     reso = 416
 
 
@@ -48,8 +53,8 @@ def videoMake(exStr):
 
     # Set up the neural network
     print("Loading network.....")
-    model = Darknet(cfgfile)
-    model.load_weights(weightsfile)
+    # model = Darknet(cfgfile)
+    # model.load_weights(weightsfile)
     print("Network successfully loaded")
 
     model.net_info["height"] = reso
@@ -103,9 +108,9 @@ def videoMake(exStr):
             if convert_step == totalFrame/frameStepForSave:
                 convert_end = totalFrame
             '''
-            print("convert_step ", convert_step)
-            print("convert_end ", convert_end)
-            print("convert_start ", convert_start)
+            #print("convert_step ", convert_step)
+            #print("convert_end ", convert_end)
+            #print("convert_start ", convert_start)
             stepFrameToVideo(framesForVideo, convert_start, convert_end-1, convert_step)
 
             frameBreakForSave += frameStepForSave
@@ -114,8 +119,8 @@ def videoMake(exStr):
             # 초당 30 -> 30이지만 욜로는 초당 6만 할거임.
             if yoloCounting == 0:
                 yoloCounting += 1
-                print("** This is Yolo : ", yoloCountingCheck)
-                print("-- Do Yolo : ", yoloCounting)
+                #print("** This is Yolo : ", yoloCountingCheck)
+                #print("-- Do Yolo : ", yoloCounting)
                 yoloCountingCheck+=1
                 img = prep_image(frame, inp_dim)
                 #        cv2.imshow("a", frame)
@@ -156,7 +161,7 @@ def videoMake(exStr):
                 colors = pkl.load(open("videoMake/pallete", "rb"))
 
                 # 사람이미지 자르는데 이건 모든프레임 필요x 1/6 마다 추출
-                what = list(map(lambda x: cutPerson(x, frame), output))
+                findRes = list(map(lambda x: cutPerson(x, frame), output))
 
 
             else:
@@ -166,24 +171,24 @@ def videoMake(exStr):
 
             # 얘는 욜로 결과 그리는건데 모든 프레임에 결과 있어야함.
             for i, out in enumerate(output):
-                if what[i]:
+                if findRes[i]:
                     write(out, frame)
 
 
 
-            #cv2.imshow("frame", frame)  # 화면 보여주는 곳
+            # cv2.imshow("frame", frame)  # 화면 보여주는 곳
             framesForVideo.append(frame)
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):
                 break
             frameCount += 1
-            print(time.time() - start)
-            print("FPS of the video is {:5.2f}".format(frameCount / (time.time() - start)))
+            #print(time.time() - start)
+            #print("FPS of the video is {:5.2f}".format(frameCount / (time.time() - start)))
         else:
             break
     print("Total Time : ", (time.time() - start))
     frameToWholeVideo(framesForVideo)
-    #frameToVideo(framesForVideo, 5)
+    # frameToVideo(framesForVideo, 5)
 
 def write(x, results):
     c1 = tuple(x[1:3].int())
@@ -223,33 +228,47 @@ def cutPerson(x, img):
 
     global personNum
     path = "./cuttedperson/person" +str(personNum)+".jpg"
-    b = cutUpperBody(img_cut,"./cuttedupper/upper" +str(personNum)+".jpg")
+    upperPath = "./cuttedupper/upper" +str(personNum)+".jpg"
+    lowerPath = "./cuttedlower/lower" +str(personNum)+".jpg"
 
-    if not b:
+    upperFind, cutToUpper = cutUpperBody(img_cut)
+
+    if not bool(upperFind):
+        return False
+    lowerFind, cutToLower = cutLowerBody(img_cut)
+
+    if not bool(lowerFind):
         return False
 
-    cutLowerBody(img_cut,"./cuttedlower/lower" +str(personNum)+".jpg")
-    cv2.imwrite(path,img_cut)
+    cv2.imwrite(path, img_cut)
+    cv2.imwrite(upperPath, cutToUpper)
+    cv2.imwrite(lowerPath, cutToLower)
     personNum += 1
-    return b
 
-def cutUpperBody(img,path):
+    return True
+
+def cutUpperBody(img):
     img_h = img.shape[0]
     img_w = img.shape[1]
     cutToUpper = img[int((img_h/10)*1): int((img_h/10)*6), : img_w]
-    global hexCode
-    find = color(hexCode ,cutToUpper)
+    global upperHexCode
+    find = color(upperHexCode, cutToUpper)
     if not find:
-        return False
-    cv2.imwrite(path, cutToUpper)
-    #print("True")
-    return True
+        return int(0), ""
+    #print("Upper True")
+    return int(1) , cutToUpper
 
-def cutLowerBody(img,path):
+def cutLowerBody(img):
     img_h = img.shape[0]
     img_w = img.shape[1]
-    cutToUpper = img[int((img_h / 10) * 5): img_h, : img_w]
-    cv2.imwrite(path, cutToUpper)
+    cutToLower = img[int((img_h / 10) * 5): img_h, : img_w]
+
+    global lowerHexCode
+    find = color(lowerHexCode, cutToLower)
+    if not find:
+        return int(0), ""
+    #print("Lower True")
+    return int(1), cutToLower
 
 # 영상 중간중간 yolo 결과로 저장 하는 메소드
 def stepFrameToVideo(inputs, start, end, step, fps=25, pathDir="./yoloresult"):
@@ -264,7 +283,20 @@ def stepFrameToVideo(inputs, start, end, step, fps=25, pathDir="./yoloresult"):
     while count < end:
         out.write(inputs[count])
         count += 1
-    out.release()
+
+    global complete
+    lock.acquire()
+    try:
+        out.release()
+        complete[0] = complete[0]+1
+        print("++complete : ", complete[0])
+    finally:
+        lock.release()
+
+
+
+    # 서버스레드 깨워
+
 def frameToWholeVideo(inputs, fps=25, pathDir="./yoloresult"):
     height, width, layers = inputs[0].shape
     size = (width, height)
