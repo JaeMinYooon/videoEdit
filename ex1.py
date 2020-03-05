@@ -28,7 +28,7 @@ def hex_to_hsv(hexCode):
     #print(hsv)
     return hsv
 
-def color(hexCode="#00688B",cutImage=""):
+def color(hexCode, cutImage=""):
 
     hex = hexCode.lstrip(('#'))
     '''
@@ -98,9 +98,9 @@ def color(hexCode="#00688B",cutImage=""):
         lower = np.array([10, 70, 80])  #
         upper = np.array([40, 160, 190])  #
     else:
-        print("input error")
+        print("input color error")
         lower = np.array([0, 0, 0])
-        upper = np.array([0, 0, 0])
+        upper = np.array([180, 255, 255])
 
     mask = cv2.inRange(hsv, lower, upper)
     p = percent(mask)

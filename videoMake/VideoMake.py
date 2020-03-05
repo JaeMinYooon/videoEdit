@@ -19,13 +19,13 @@ from ex1 import *
 
 personNum = 1
 classes = load_classes("videoMake/data/coco.names")
-upperHexCode= ""
-lowerHexCode= ""
+upperHexCode= "#000000"
+lowerHexCode= "#a1f2cc"
 
 def videoMake(exStr, model):
     # kind에따라 찾을 물체를 정함. (ex :  person=0, dog=16)
     kind = 0
-    inputString = exStr.split('&')
+    inputString = exStr.split(',')
     if inputString[0] == "person":
         kind = 0
     if inputString[0] == "dog":

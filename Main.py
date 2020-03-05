@@ -7,9 +7,9 @@ import time
 # input 동영상(보류) /// 종류 (ex : 사람) , 상의 , 하의 , 상의색, 하의색
 def webSock():
     # sample2.jgp 는 원래 안써야하는데 그냥 인풋뭘로할지 테스트용임
-    #exStr = "person,long,long,cb3013,red,./inputvideo/vtest.avi"
+    exStr = "person,long,long,000000,010000,./inputvideo/jaemin.mp4"
 
-    exStr = "person,long,long,2e2b3c,70051d,sample3.jpg"
+    #exStr = "person,long,long,2e2b3c,70051d,sample3.jpg"
     return exStr
 def main():
 
@@ -19,6 +19,13 @@ def main():
     model = darknet.Darknet(cfgfile)
     model.load_weights(weightsfile)
 
+    exStr = webSock()
+
+
+    # 영상 yolo작업 후 실행 =======================================
+    VideoMake.videoMake(exStr, model)
+main()
+'''
     PYPORT = 5803
     PYIP = "192.168.0.35"
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -96,8 +103,8 @@ def main():
 
             # exit 보내야함.
             client_socket.send("exit".encode())
-
-        '''
+        
+    
         # client_socket.send("ok".encode())
         excel_file = open('', 'rb')
         l = excel_file.read(1024)
@@ -106,19 +113,19 @@ def main():
             print('sending....')
             l = excel_file.read(1024)
         excel_file.close()
-        '''
+        
 
-    #exStr = webSock()
+    exStr = webSock()
 
 
     # 영상 yolo작업 후 실행 =======================================
-    #VideoMake.videoMake(exStr)
+    VideoMake.videoMake(exStr,weightsfile)
 
 
     #exVideoMake(exStr)
 
     # exVideoMake("sample2.jpg")
-main()
+    '''
 
 
 '''
