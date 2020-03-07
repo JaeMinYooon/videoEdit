@@ -7,6 +7,7 @@ import time
 # input 동영상(보류) /// 종류 (ex : 사람) , 상의 , 하의 , 상의색, 하의색
 def webSock():
     # sample2.jgp 는 원래 안써야하는데 그냥 인풋뭘로할지 테스트용임
+    # 이부분 수정좀
     exStr = "person,long,long,000000,010000,./inputvideo/jaemin.mp4"
 
     #exStr = "person,long,long,2e2b3c,70051d,sample3.jpg"
