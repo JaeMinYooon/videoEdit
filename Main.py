@@ -13,7 +13,6 @@ def webSock():
     #exStr = "person,long,long,2e2b3c,70051d,sample3.jpg"
     return exStr
 def main():
-
     # 모델 로드 해놓고 실행하는데 이거 좀 다듬어야할듯
     cfgfile = "videoMake/cfg/yolov3.cfg"
     weightsfile = "videoMake/cfg/yolov3.weights"
