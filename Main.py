@@ -21,7 +21,6 @@ def main():
 
     exStr = webSock()
 
-
     # 영상 yolo작업 후 실행 =======================================
     VideoMake.videoMake(exStr, model)
 main()
