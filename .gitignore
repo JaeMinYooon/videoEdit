@@ -11,6 +11,13 @@ __pycache__/
 /videoMake/data/*
 /videoMake/cfg/
 /videoMake/data/
+/videoMake/bottom/*
+/videoMake/bottom/
+/videoMake/top/*
+/videoMake/top/
+/videoMake/data/*
+/videoMake/data/
+*.txt
 
 
 # C extensions

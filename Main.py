@@ -1,38 +1,52 @@
 from videoMake import *
-from ex1 import complete, lock
 import socket
-import threading
 import time
+import threading
+
+import ex
+
+complete = [0]
+lock = threading.Lock()
 
 # input 동영상(보류) /// 종류 (ex : 사람) , 상의 , 하의 , 상의색, 하의색
-def webSock():
-    # sample2.jgp 는 원래 안써야하는데 그냥 인풋뭘로할지 테스트용임
-    # 이부분 수정좀
-    exStr = "person,long,long,000000,010000,./inputvideo/jaemin.mp4"
+def noServer():
+    # 맨밑에서 main 대신 noServer 부르면 됨
+    # 좀 된 버전 V3인듯
+    cfgfile = "videoMake/cfg/yolov3.cfg"
+    weightsfile = "videoMake/cfg/yolov3.weights"
+    # 가장 최신 V3
+    #cfgfile = "videoMake/cfg/yolov3new.cfg"
+    #weightsfile = "videoMake/cfg/yolov3new.weights"
+    # tiny 욜로
+    #cfgfile = "videoMake/cfg/yolov3-tiny.cfg"
+    #weightsfile = "videoMake/cfg/yolov3-tiny.weights"
+    model = darknet.Darknet(cfgfile)
+    model.load_weights(weightsfile)
 
-    #exStr = "person,long,long,2e2b3c,70051d,sample3.jpg"
-    return exStr
+    exStr = "person&long&long&0022ff&0022ff&./airport.mp4"
+    VideoMake.videoMakeWithYolo(exStr, model)
+
+    # 사진 테스트용 그냥 주석풀고 실행하면됨
+    #exStr = "person&long&long&0022ff&0022ff&blue.png"
+    #ex.exVideoMake(exStr)
+
 def main():
+
     # 모델 로드 해놓고 실행하는데 이거 좀 다듬어야할듯
+    # 가장 최신 V3
     cfgfile = "videoMake/cfg/yolov3.cfg"
     weightsfile = "videoMake/cfg/yolov3.weights"
     model = darknet.Darknet(cfgfile)
     model.load_weights(weightsfile)
 
-    exStr = webSock()
-
-    # 영상 yolo작업 후 실행 =======================================
-    VideoMake.videoMake(exStr, model)
-main()
-'''
     PYPORT = 5803
-    PYIP = "192.168.0.35"
+    PYIP = "192.168.0.38"
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((PYIP, PYPORT))
 
     server_socket.listen(5)
     print("TCPServer Waiting for client on port " + str(PYPORT))
-
+    global complete, lock
     while True:
         # 클라이언트 요청 대기중 .
         client_socket, address = server_socket.accept()
@@ -49,34 +63,34 @@ main()
             strData = data.decode()
             print("string : ", strData)
 
-            thread = threading.Thread(target=VideoMake.videoMake, args=(strData, model))
+            thread = threading.Thread(target=VideoMake.videoMakeWithYolo,
+                                      args=(strData, model, complete, lock))
 
             thread.start()
 
-
-
-            global complete
-            i=0
+            i = 0
             while True:
                 print("밀린 욜로 파일 : ", complete[0])
                 if i >= 5 :
                     print("전체 파일 전송 종료")
                     break
-                if complete[0] >=1:
+                if complete[0] >= 1:
                     lock.acquire()
                     try:
                         complete[0] = complete[0] -1
                         print("보내고 남은 양 : ", complete[0])
                     finally:
                         lock.release()
-                    filename = "yoloed_" + str(i+1) + ".mp4"
+
 
                     start = time.time()
-                    sendStartStr = "start"
-                    client_socket.send(sendStartStr.encode())
 
-                    sendFileStr = filename
-                    client_socket.send(sendFileStr.encode())
+                    # ------------    시간Text파일 전송    ---------------
+                    sendStartStr = "start"
+                    client_socket.sendall(sendStartStr.encode())
+
+                    filename = "yoloed_" + str(i + 1) + ".txt"
+                    client_socket.sendall(filename.encode())
 
                     print("filename", filename)
                     data = client_socket.recv(1024)
@@ -85,116 +99,46 @@ main()
                         with open("./yoloresult/" + filename, 'rb') as yoloed_file:
                             filePack = yoloed_file.read(1024)
                             print('sending....')
-                            filesize = 0
                             while filePack:
-                                filesize += client_socket.send(filePack)
+                                client_socket.sendall(filePack)
                                 filePack = yoloed_file.read(1024)
 
                             data = client_socket.recv(1024)
                             if data.decode() == "recieve":
                                 client_socket.sendall("fileend".encode())
+                    # ------------    Yolo 동영상 전송    ---------------
+                    data = client_socket.recv(1024)
+                    if data.decode() == "mp4go":
+                        print("mp4go")
+                        sendStartStr = "start"
+                        client_socket.sendall(sendStartStr.encode())
+                        data = client_socket.recv(1024)
+                        if data.decode() == "filenamego":
+                            filename = "yoloed_" + str(i + 1) + ".mp4"
+                            client_socket.sendall(filename.encode())
+
+                            print("filename", filename)
+                        data = client_socket.recv(1024)
+                        if data.decode() == "go":
+                            # yoloed_file = open(filename, 'rb')
+                            with open("./yoloresult/" + filename, 'rb') as yoloed_file:
+                                filePack = yoloed_file.read(1024)
+                                print('sending....')
+                                while filePack:
+                                    client_socket.sendall(filePack)
+                                    filePack = yoloed_file.read(1024)
+
+                                data = client_socket.recv(1024)
+                                if data.decode() == "recieve":
+                                    client_socket.sendall("fileend".encode())
                     print("********** : " ,time.time()-start)
 
-                    yoloed_file.close()
                     i += 1
                 else:
                     time.sleep(1)
 
             # exit 보내야함.
-            client_socket.send("exit".encode())
-        
-    
-        # client_socket.send("ok".encode())
-        excel_file = open('', 'rb')
-        l = excel_file.read(1024)
-        while (l):
-            client_socket.send(l)
-            print('sending....')
-            l = excel_file.read(1024)
-        excel_file.close()
-        
+            client_socket.sendall("exit".encode())
 
-    exStr = webSock()
-
-
-    # 영상 yolo작업 후 실행 =======================================
-    VideoMake.videoMake(exStr,weightsfile)
-
-
-    #exVideoMake(exStr)
-
-    # exVideoMake("sample2.jpg")
-    '''
-
-
-'''
-# 서버 소켓 오픈
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(("223.194.131.27", 5801))
-    server_socket.listen(5)
-    print("TCPServer Waiting for client on port 5000")
-
-    while True:
-
-        # 클라이언트 요청 대기중 .
-        client_socket, address = server_socket.accept()
-        # 클라이언트 호스트네임
-        # 연결 요청 성공
-        print("I got a connection from ", address)
-
-        data = None
-        # img_data = client_socket.recv(1024)
-
-        excetionCtrl = False
-        # Data 수신
-        while True:
-            img_data = client_socket.recv(1024)
-            data = img_data
-            if img_data:
-                while img_data:
-                    print("recving Img...")
-                    img_data = client_socket.recv(1024)
-                    data += img_data
-                else:
-                    break
-
-        # 받은 데이터 저장
-        # 이미지 파일 이름은 현재날짜/시간/분/초.jpg
-        img_fileName, toMain = fileName()
-        img_file = open(img_fileName, "wb")
-        print("finish img recv")
-        print(sys.getsizeof(data))
-        img_file.write(data)
-        img_file.close()
-
-        print("Finish ")
-        # print(toMain)
-        # client_socket.send("ok".encode())
-        try:
-            Cmain(imagePath=toMain, model=model)
-            excetionCtrl = True
-            print("성공!")
-        except:
-            excetionCtrl = False
-            print("실패!")
-        client_socket.shutdown(socket.SHUT_RD)
-        # client_socket.sendall(getFileData(toMain+'.jpg', src))
-        if excetionCtrl == True:
-            # client_socket.send("ok".encode())
-            excel_file = open(toMain + '.xlsx', 'rb')
-            l = excel_file.read(1024)
-            while (l):
-                client_socket.send(l)
-                print('sending....')
-                l = excel_file.read(1024)
-            excel_file.close()
-        else:
-            client_socket.send("no".encode())
-        client_socket.shutdown(socket.SHUT_WR)
-        print("보냈는데?")
-
-        # client_socket.shutdown(SHUT_RD)
-    client_socket.close()
-    print("SOCKET closed... END")
-
-'''
+if __name__ == '__main__':
+    noServer()
