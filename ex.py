@@ -5,19 +5,21 @@ from videoMake.darknet import Darknet
 from ex1 import *
 personNum = 1
 classes = load_classes("videoMake/data/coco.names")
-hexCode=""
+#classes = load_classes("videoMake/data/openimages.names")
+upperHexCode= ""
+lowerHexCode= ""
 
-def exVideoMake(exStr):
+def exVideoMake(exStr,model):
 
     # kind에따라 찾을 물체를 정함. (ex :  person=0, dog=16)
-    kind = 0
-    inputString = exStr.split(',')
-    if inputString[0] == "person":
-        kind = 0
-    if inputString[0] == "dog":
-        kind = 16
-    global hexCode
-    hexCode = inputString[3]
+    inputString = exStr.split('&')
+    kind = classes.index(inputString[0])
+    if kind==0:
+        global upperHexCode
+        upperHexCode = inputString[3]
+        global lowerHexCode
+        lowerHexCode = inputString[4]
+
     videofile = inputString[len(inputString)-1]
     print("kind "+ str(kind) + "videofile : " +str(videofile))
     print(type(kind))
@@ -25,8 +27,7 @@ def exVideoMake(exStr):
     bs = 1
     confidence = 0.5
     nms_thresh = 0.4
-    cfgfile = "videoMake/cfg/yolov3.cfg"
-    weightsfile = "videoMake/cfg/yolov3.weights"
+
     reso = 416
 
     batch_size = int(bs)
@@ -37,8 +38,8 @@ def exVideoMake(exStr):
 
     # Set up the neural network
     print("Loading network.....")
-    model = Darknet(cfgfile)
-    model.load_weights(weightsfile)
+    #model = Darknet(cfgfile)
+    #model.load_weights(weightsfile)
     print("Network successfully loaded")
 
     model.net_info["height"] = reso
@@ -54,8 +55,9 @@ def exVideoMake(exStr):
     model.eval()
 
     # Detection phase
-
-
+    print(torch.cuda.get_device_name(0))
+    print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
+    print('Cached:   ', round(torch.cuda.memory_cached(0) / 1024 ** 3, 1), 'GB')
     frame = cv2.imread(videofile)
 
     img = prep_image(frame, inp_dim)
@@ -68,31 +70,42 @@ def exVideoMake(exStr):
         img = img.cuda()
 
     with torch.no_grad():
-        output = model(Variable(img, volatile=True), CUDA)
+        output = model(Variable(img, requires_grad=True), CUDA)
     output = write_results(output, kind, confidence, num_classes, nms_conf=nms_thesh)
 
 
-    im_dim = im_dim.repeat(output.size(0), 1)
-    scaling_factor = torch.min(416 / im_dim, 1)[0].view(-1, 1)
+    print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
+    print('Cached:   ', round(torch.cuda.memory_cached(0) / 1024 ** 3, 1), 'GB')
+    if type(output) == int:
+        print("없는데?????")
+    if type(output) != int:
+        im_dim = im_dim.repeat(output.size(0), 1)
+        scaling_factor = torch.min(416 / im_dim, 1)[0].view(-1, 1)
 
-    output[:, [1, 3]] -= (inp_dim - scaling_factor * im_dim[:, 0].view(-1, 1)) / 2
-    output[:, [2, 4]] -= (inp_dim - scaling_factor * im_dim[:, 1].view(-1, 1)) / 2
+        output[:, [1, 3]] -= (inp_dim - scaling_factor * im_dim[:, 0].view(-1, 1)) / 2
+        output[:, [2, 4]] -= (inp_dim - scaling_factor * im_dim[:, 1].view(-1, 1)) / 2
 
-    output[:, 1:5] /= scaling_factor
+        output[:, 1:5] /= scaling_factor
 
-    for i in range(output.shape[0]):
-        output[i, [1, 3]] = torch.clamp(output[i, [1, 3]], 0.0, im_dim[i, 0])
-        output[i, [2, 4]] = torch.clamp(output[i, [2, 4]], 0.0, im_dim[i, 1])
+        for i in range(output.shape[0]):
+            output[i, [1, 3]] = torch.clamp(output[i, [1, 3]], 0.0, im_dim[i, 0])
+            output[i, [2, 4]] = torch.clamp(output[i, [2, 4]], 0.0, im_dim[i, 1])
 
-    classes = load_classes('videoMake/data/coco.names')
-    # 사람이미지 자르는데 이건 모든프레임 필요x 1/6 마다 추출
-    what = list(map(lambda x: cutPerson(x, frame), output))
-    print(what)
-    # 얘는 욜로 결과 그리는건데 모든 프레임에 결과 있어야함.
-    #list(map(lambda x: write(x, frame), output))
-    for i, out in enumerate(output):
-        if what[i]:
-            write(out, frame)
+        # 사람이미지 자르는데 이건 모든프레임 필요x 1/6 마다 추출
+        if kind ==0:
+            findRes = list(map(lambda x: cutPerson(x, frame), output))
+        else:
+            list(map(lambda x: cutNotPerson(x, frame), output))
+    # 위랑 밑에 주석 바꾸셈. 위 = 색적용X , 밑= 색적용O
+
+    if type(output) != int:
+        list(map(lambda x: write(x, frame), output))
+    # 입력 종류(dog or person)에 따라 거른 욜로 결과를 프레임에 그림
+    #if type(output) != int:
+    #    # type == int => 뜻은 욜로 아무것도 못찾았다임
+    #    for i, out in enumerate(output):
+    #        if findRes[i]:
+    #            write(out, frame)
 
     cv2.imshow("dd",frame)
     cv2.waitKey(0)
@@ -125,6 +138,19 @@ def write(x, results):
     cv2.putText(img, label, (c1[0], c1[1]), cv2.FONT_ITALIC, 0.3, [225, 255, 255], 1);
     return img
 
+def cutNotPerson(x, img):
+    c1 = tuple(x[1:3].int())
+    c2 = tuple(x[3:5].int())
+    x, y = c1
+    x_max, y_max = c2
+    w = x_max - x
+    h = y_max - y
+    img_cut = img[y:y + h, x:x + w]
+    global personNum
+    path = "./cuttednotperson/test" +str(personNum)+".jpg"
+    personNum += 1
+    cv2.imwrite(path, img_cut)
+
 # 이미지에서 좌표로 박스 자름
 def cutPerson(x, img):
     c1 = tuple(x[1:3].int())
@@ -137,29 +163,47 @@ def cutPerson(x, img):
 
     global personNum
     path = "./cuttedperson/person" +str(personNum)+".jpg"
-    b = cutUpperBody(img_cut,"./cuttedupper/upper" +str(personNum)+".jpg")
-    cutLowerBody(img_cut,"./cuttedlower/lower" +str(personNum)+".jpg")
-    cv2.imwrite(path,img_cut)
-    personNum += 1
-    return b
+    upperPath = "./cuttedupper/upper" +str(personNum)+".jpg"
+    lowerPath = "./cuttedlower/lower" +str(personNum)+".jpg"
 
-def cutUpperBody(img,path):
+    upperFind, cutToUpper = cutUpperBody(img_cut)
+
+    if not bool(upperFind):
+        return False
+    lowerFind, cutToLower = cutLowerBody(img_cut)
+
+    if not bool(lowerFind):
+        return False
+
+    cv2.imwrite(path, img_cut)
+    cv2.imwrite(upperPath, cutToUpper)
+    cv2.imwrite(lowerPath, cutToLower)
+    personNum += 1
+
+    return True
+
+def cutUpperBody(img):
     img_h = img.shape[0]
     img_w = img.shape[1]
     cutToUpper = img[int((img_h/10)*1): int((img_h/10)*6), : img_w]
-    global hexCode
-    find = color(hexCode ,cutToUpper)
+    global upperHexCode
+    find = color(upperHexCode, cutToUpper)
     if not find:
-        return False
-    cv2.imwrite(path, cutToUpper)
-    print("True")
-    return True
+        return int(0), ""
+    print("Upper True")
+    return int(1) , cutToUpper
 
-def cutLowerBody(img,path):
+def cutLowerBody(img):
     img_h = img.shape[0]
     img_w = img.shape[1]
-    cutToUpper = img[int((img_h / 10) * 5): img_h, : img_w]
-    cv2.imwrite(path, cutToUpper)
+    cutToLower = img[int((img_h / 10) * 5): img_h, : img_w]
+
+    global lowerHexCode
+    find = color(lowerHexCode, cutToLower)
+    if not find:
+        return int(0), ""
+    print("Lower True")
+    return int(1), cutToLower
 
 
 # 영상 중간중간 yolo 결과로 저장 하는 메소드

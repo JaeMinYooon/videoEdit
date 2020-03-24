@@ -11,30 +11,35 @@ import pickle as pkl
 import pandas as pd
 import random
 from ex1 import color
-from videoMake.clothClassification import *
+#from videoMake.clothClassification import *
 
 
 personNum = 1
 classes = load_classes("videoMake/data/coco.names")
 # 몇분할 할껀지 이거 숫자 변경해주면 됨
-default_divisionNum = 5
+default_divisionNum = 15
 # 욜로 분할 - ( 5 주면 1욜로+4건너뜀)
 default_yoloNum = 5
+classifyModels = []
 
-def videoMakeWithYolo(exStr, model, complete=0, lock=False):
+def videoMakeWithYolo(exStr, models, complete=0, lock=False):
     # kind에따라 찾을 물체를 정함. (ex :  person=0, dog=16)
-    kind = 0
     inputString = exStr.split('&')
-    if inputString[0] == "person":
-        kind = 0
-    if inputString[0] == "dog":
-        kind = 16
 
-    top = inputString[1]
-    bottom = inputString[2]
+    # coco.names 에 담긴 정보로 string -> index 치환 :: 이 정보로 yolo detect 함.
+    kind = classes.index(inputString[0])
 
-    upperHexCode = inputString[3]
-    lowerHexCode = inputString[4]
+    # 모델 미리 로드된거 배열로 받음
+    model = models[0]
+    if len(models) >= 2:
+        classifyModels.append(models[1])
+        classifyModels.append(models[2])
+
+    if kind == 0:
+        top = inputString[1]
+        bottom = inputString[2]
+        upperHexCode = inputString[3]
+        lowerHexCode = inputString[4]
 
     videofile = inputString[len(inputString)-1]
 
@@ -150,7 +155,8 @@ def videoMakeWithYolo(exStr, model, complete=0, lock=False):
                     img = img.cuda()
 
                 with torch.no_grad():
-                    output = model(Variable(img, volatile=True), CUDA)
+                    #output = model(Variable(img, volatile=True), CUDA)
+                    output = model(Variable(img, requires_grad=True), CUDA)
                 output = write_results(output, kind, confidence, num_classes, nms_conf=nms_thesh)
 
                 if type(output) == int:
@@ -181,26 +187,28 @@ def videoMakeWithYolo(exStr, model, complete=0, lock=False):
 
                 # output = 1프레임의 욜로 결과 배열.      ex) 3개발견 0] dog   1]  cat  2] person
                 # findRes = 1프레임의 욜로 결과 사람인지? ex) 3개발견 0] false 1] false 2] true
-                findRes = list(map(lambda x: cutPerson(x, frame, upperHexCode, lowerHexCode, top, bottom), output))
-
+                if kind == 0:
+                    findRes = list(map(lambda x: cutPerson(x, frame, upperHexCode, lowerHexCode, top, bottom), output))
+                else:
+                    list(map(lambda x: cutNotPerson(x, frame), output))
             # 욜로 + 건너뛰는프레임  <- 이거 구분. else 는 건너뛰는 부분임.
             else:
                 yoloCounting += 1
                 yoloCounting %= default_yoloNum
 
-            #if type(output) != int:
+            if type(output) != int:
                 # type == int => 뜻은 욜로 아무것도 못찾았다임
-            #    list(map(lambda x: write(x, frame), output))
+                list(map(lambda x: write(x, frame), output))
 
             # 위랑 밑에 주석 바꾸셈. 위 = 색적용X , 밑= 색적용O
 
             # 입력 종류(dog or person)에 따라 거른 욜로 결과를 프레임에 그림
-            if type(output) != int:
-                # type == int => 뜻은 욜로 아무것도 못찾았다임
-                for i, out in enumerate(output):
-                    if findRes[i]:
-                        timeChecker.append(int(cap.get(cv2.CAP_PROP_POS_MSEC)/1000))
-                        write(out, frame)
+            #if type(output) != int:
+            #    timeChecker.append(int(cap.get(cv2.CAP_PROP_POS_MSEC)/1000))
+            #    # type == int => 뜻은 욜로 아무것도 못찾았다임
+            #    for i, out in enumerate(output):
+            #        if findRes[i]:
+            #            write(out, frame)
 
             framesForVideo.append(frame)
 
@@ -244,6 +252,18 @@ def write(x, results):
     #cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_ITALIC, 1, [225, 255, 255], 1);
     cv2.putText(img, label, (c1[0], c1[1]), cv2.FONT_ITALIC, 0.3, [225, 255, 255], 1);
     return img
+def cutNotPerson(x, img):
+    c1 = tuple(x[1:3].int())
+    c2 = tuple(x[3:5].int())
+    x, y = c1
+    x_max, y_max = c2
+    w = x_max - x
+    h = y_max - y
+    img_cut = img[y:y + h, x:x + w]
+    global personNum
+    path = "./cuttednotperson/test" +str(personNum)+".jpg"
+    personNum += 1
+    cv2.imwrite(path, img_cut)
 
 # 이미지에서 좌표로 박스 자름
 def cutPerson(x, img, upperHexCode, lowerHexCode, top, bottom):
@@ -268,14 +288,16 @@ def cutPerson(x, img, upperHexCode, lowerHexCode, top, bottom):
     if not bool(lowerFind):
         return False
 
-    upperFind = classification(cutToUpper, top, flag = 0)
+    # 상의 하의 종류 구분 보류.
+    '''
+    upperFind = classification(cutToUpper, top, classifyModels[0], flag = 0)
     if not bool(upperFind):
         return False
 
-    lowerFind = classification(cutToLower, bottom, flag = 1)
+    lowerFind = classification(cutToLower, bottom, classifyModels[1], flag = 1)
     if not bool(lowerFind):
         return False
-
+    '''
     cv2.imwrite(path, img_cut)
     cv2.imwrite(upperPath, cutToUpper)
     cv2.imwrite(lowerPath, cutToLower)
@@ -283,8 +305,8 @@ def cutPerson(x, img, upperHexCode, lowerHexCode, top, bottom):
 
     return True
 
-def classification(cutImg, cloth, flag):
-    find = predict(cutImg, cloth, flag)
+def classification(cutImg, cloth, model, flag):
+    find = predict(cutImg, cloth, model, flag)
     if not find:
         return int(0), ""
     return int(1)
