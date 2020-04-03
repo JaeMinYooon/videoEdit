@@ -11,13 +11,13 @@ import pickle as pkl
 import pandas as pd
 import random
 from ex1 import color
-#from videoMake.clothClassification import *
+from videoMake.clothClassification import *
 
 
 personNum = 1
 classes = load_classes("videoMake/data/coco.names")
 # 몇분할 할껀지 이거 숫자 변경해주면 됨
-default_divisionNum = 15
+default_divisionNum = 5
 # 욜로 분할 - ( 5 주면 1욜로+4건너뜀)
 default_yoloNum = 5
 classifyModels = []
@@ -40,8 +40,8 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
         bottom = inputString[2]
         upperHexCode = inputString[3]
         lowerHexCode = inputString[4]
-
-    videofile = inputString[len(inputString)-1]
+    filename = inputString[len(inputString)-1]
+    videofile = "./"+filename+".mp4"
 
     num_classes = 80
     bs = 1
@@ -106,15 +106,13 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
         # 진행도에 따라 중간중간 저장하는 코드
         if frameCount == frameBreakForSave:
             # 분할 했을때 몇번째 시작점, 종료점 필요함.
-            convert_start = frameBreakForSave - frameStepForSave
-            convert_end = frameBreakForSave
+            # 전체 비디오 저장할거면. convert_ 변수 사용.
+            # convert_start = frameBreakForSave - frameStepForSave
+            # convert_end = frameBreakForSave
+            convert_start = 0
+            convert_end = len(framesForVideo)
             convert_step = int(frameBreakForSave/frameStepForSave)
-            '''
-            분할 하고 남은 프레임 그냥 버림.
-            # 프레임이 딱 맞게 분할 안되면 프레임 몇조각 남으니까 막번째는 total 까지
-            if convert_step == totalFrame/frameStepForSave:
-                convert_end = totalFrame
-            '''
+
             print("convert_step ", convert_step)
             print("convert_end ", convert_end)
             print("convert_start ", convert_start)
@@ -127,17 +125,18 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
                     print("Save (Server True)")
                     complete[0] = complete[0] + 1
                     print("++complete : ", complete[0])
-                    stepDetectTimeToTxt(timeChecker, convert_step)
+                    stepDetectTimeToTxt(timeChecker, convert_step, filename)
                     timeChecker.clear()
-                    stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, fps=default_fps)
+                    stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, filename, fps=default_fps)
+                    framesForVideo.clear()
                 finally:
                     lock.release()
             else:
                 print("Save (Server False)")
-                stepDetectTimeToTxt(timeChecker, convert_step)
+                stepDetectTimeToTxt(timeChecker, convert_step, filename)
                 timeChecker.clear()
-                stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, fps=default_fps)
-
+                stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, filename, fps=default_fps)
+                framesForVideo.clear()
             frameBreakForSave += frameStepForSave
 
         if ret:
@@ -198,6 +197,7 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
 
             if type(output) != int:
                 # type == int => 뜻은 욜로 아무것도 못찾았다임
+                timeChecker.append(int(cap.get(cv2.CAP_PROP_POS_MSEC) / 1000))
                 list(map(lambda x: write(x, frame), output))
 
             # 위랑 밑에 주석 바꾸셈. 위 = 색적용X , 밑= 색적용O
@@ -224,7 +224,8 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
             print(" 동영상 종료.")
             break
     print("Total Time : ", (time.time() - start))
-    frameToWholeVideo(framesForVideo, fps=default_fps)
+    # 전체 비디오 저장. while 위에 convert_start & end 확인 하셈.
+    #frameToWholeVideo(framesForVideo, fps=default_fps)
     # frameToVideo(framesForVideo, 5)
 
 def write(x, results):
@@ -335,20 +336,20 @@ def cutLowerBody(img, lowerHexCode):
     return int(1), cutToLower
 
 # 발견된 시간 텍스트로 저장
-def stepDetectTimeToTxt(timeChecker, step, pathDir="./yoloresult"):
+def stepDetectTimeToTxt(timeChecker, step, pathName, pathDir="./yoloresult"):
     # list_a = list(map(int, list_a))
     timeChecker = list(set(timeChecker))
     timeChecker.sort()
-    pathOut = pathDir + '/yoloed_' + str(step) + '.txt'
+    pathOut = pathDir + '/' +pathName + "_"+ str(step) + '.txt'
     f = open(pathOut, 'w')
     f.write(str(timeChecker))
     f.close()
 
 # 영상 중간중간 yolo 결과로 저장 하는 메소드
-def stepFrameToVideo(inputs, start, end, step, fps=25, pathDir="./yoloresult"):
+def stepFrameToVideo(inputs, start, end, step, pathName, fps=25, pathDir="./yoloresult"):
     height, width, layers = inputs[0].shape
     size = (width, height)
-    pathOut = pathDir + '/yoloed_' + str(step) + '.mp4'
+    pathOut = pathDir + '/' + pathName + "_" + str(step) + '.mp4'
     #pathOut = pathDir + '/yoloed_' + str(step) + '.avi'
     #out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
     #out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)

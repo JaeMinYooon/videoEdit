@@ -7,8 +7,8 @@ import ex
 complete = [0]
 lock = threading.Lock()
 label = {
-    'top': {'short_top': 0, 'long_top': 1},
-    'bottom': {'short_bottom': 0, 'long_bottom': 1, 'skirt': 2}
+    'top': {'shortTopC': 0, 'longTopC': 1},
+    'bottom': {'shortBottomC': 0, 'longBottomC': 1, 'skirtBottomC': 2}
 }
 
 top_classes = {v: k for k, v in label['top'].items()}
@@ -48,8 +48,8 @@ def noServer():
     #models.append(top_model)
     #models.append(bottom_model)
 
-    #exStr = "person&long&long&0022ff&0022ff&./airport.mp4"
-    exStr = "backpack&./inputvideo/backpack.mp4"
+    exStr = "person&long&long&0022ff&0022ff&airport"
+    #exStr = "backpack&./inputvideo/backpack.mp4"
     VideoMake.videoMakeWithYolo(exStr, models)
 
     # 사진 테스트용 그냥 주석풀고 실행하면됨
@@ -61,10 +61,11 @@ def main():
 
     # 모델 로드 해놓고 실행하는데 이거 좀 다듬어야할듯
     # 가장 최신 V3
-    cfgfile = "videoMake/cfg/yolov3.cfg"
-    weightsfile = "videoMake/cfg/yolov3.weights"
+    cfgfile = "videoMake/cfg/yolov3new.cfg"
+    weightsfile = "videoMake/cfg/yolov3new.weights"
     model = darknet.Darknet(cfgfile)
     model.load_weights(weightsfile)
+    models.append(model)
 
     PYPORT = 5803
     PYIP = "192.168.0.38"
@@ -85,13 +86,15 @@ def main():
         recStartStr = data.decode()
         print(recStartStr)
         if recStartStr == "start":
-
             data = client_socket.recv(1024)
             strData = data.decode()
+            # "person&long&long&0022ff&0022ff&airport"
             print("string : ", strData)
+            mappingName = strData.split("&")
+            mappingName = mappingName[len(mappingName)-1]
 
             thread = threading.Thread(target=VideoMake.videoMakeWithYolo,
-                                      args=(strData, model, complete, lock))
+                                      args=(strData, models, complete, lock))
 
             thread.start()
 
@@ -116,7 +119,8 @@ def main():
                     sendStartStr = "start"
                     client_socket.sendall(sendStartStr.encode())
 
-                    filename = "yoloed_" + str(i + 1) + ".txt"
+                    #filename = "yoloed_" + str(i + 1) + ".txt"
+                    filename = mappingName + "_"+ str(i+1)+ ".txt"
                     client_socket.sendall(filename.encode())
 
                     print("filename", filename)
@@ -141,7 +145,8 @@ def main():
                         client_socket.sendall(sendStartStr.encode())
                         data = client_socket.recv(1024)
                         if data.decode() == "filenamego":
-                            filename = "yoloed_" + str(i + 1) + ".mp4"
+                            #filename = "yoloed_" + str(i + 1) + ".mp4"
+                            filename = mappingName + "_" + str(i+1) + ".mp4"
                             client_socket.sendall(filename.encode())
 
                             print("filename", filename)
