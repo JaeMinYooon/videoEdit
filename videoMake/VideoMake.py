@@ -27,7 +27,10 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
     inputString = exStr.split('&')
 
     # coco.names 에 담긴 정보로 string -> index 치환 :: 이 정보로 yolo detect 함.
-    kind = classes.index(inputString[0])
+    if inputString[0] != "-1":
+        kind = classes.index(inputString[0])
+    else:
+        kind = -1
 
     # 모델 미리 로드된거 배열로 받음
     model = models[0]
@@ -41,7 +44,7 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
         upperHexCode = inputString[3]
         lowerHexCode = inputString[4]
     filename = inputString[len(inputString)-1]
-    videofile = "./"+filename+".mp4"
+    videofile = "./inputvideo/"+filename+".mp4"
 
     num_classes = 80
     bs = 1
@@ -69,6 +72,8 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
 
     # If there's a GPU availible, put the model on GPU
     if CUDA:
+        print("CUDA STATUS : " + str(CUDA))
+        print(torch.cuda.get_device_name(0))
         model.cuda()
 
     # Set the model in evaluation mode
@@ -138,6 +143,8 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
                 stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, filename, fps=default_fps)
                 framesForVideo.clear()
             frameBreakForSave += frameStepForSave
+            #if convert_step == 3:
+            #    exit(0)
 
         if ret:
             # 초당 30 -> 30이지만 욜로는 초당 6만 할거임.
@@ -195,20 +202,22 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
                 yoloCounting += 1
                 yoloCounting %= default_yoloNum
 
+            # 색, 상하종류 적용 X if문
+            '''
             if type(output) != int:
                 # type == int => 뜻은 욜로 아무것도 못찾았다임
                 timeChecker.append(int(cap.get(cv2.CAP_PROP_POS_MSEC) / 1000))
                 list(map(lambda x: write(x, frame), output))
-
+            '''
             # 위랑 밑에 주석 바꾸셈. 위 = 색적용X , 밑= 색적용O
 
             # 입력 종류(dog or person)에 따라 거른 욜로 결과를 프레임에 그림
-            #if type(output) != int:
-            #    timeChecker.append(int(cap.get(cv2.CAP_PROP_POS_MSEC)/1000))
-            #    # type == int => 뜻은 욜로 아무것도 못찾았다임
-            #    for i, out in enumerate(output):
-            #        if findRes[i]:
-            #            write(out, frame)
+            if type(output) != int:
+                timeChecker.append(int(cap.get(cv2.CAP_PROP_POS_MSEC)/1000))
+                # type == int => 뜻은 욜로 아무것도 못찾았다임
+                for i, out in enumerate(output):
+                    if findRes[i]:
+                        write(out, frame)
 
             framesForVideo.append(frame)
 
@@ -225,7 +234,7 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
             break
     print("Total Time : ", (time.time() - start))
     # 전체 비디오 저장. while 위에 convert_start & end 확인 하셈.
-    #frameToWholeVideo(framesForVideo, fps=default_fps)
+    # frameToWholeVideo(framesForVideo, fps=default_fps)
     # frameToVideo(framesForVideo, 5)
 
 def write(x, results):
@@ -253,6 +262,7 @@ def write(x, results):
     #cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_ITALIC, 1, [225, 255, 255], 1);
     cv2.putText(img, label, (c1[0], c1[1]), cv2.FONT_ITALIC, 0.3, [225, 255, 255], 1);
     return img
+
 def cutNotPerson(x, img):
     c1 = tuple(x[1:3].int())
     c2 = tuple(x[3:5].int())
@@ -299,9 +309,12 @@ def cutPerson(x, img, upperHexCode, lowerHexCode, top, bottom):
     if not bool(lowerFind):
         return False
     '''
+
     cv2.imwrite(path, img_cut)
+
     cv2.imwrite(upperPath, cutToUpper)
     cv2.imwrite(lowerPath, cutToLower)
+
     personNum += 1
 
     return True
@@ -341,7 +354,7 @@ def stepDetectTimeToTxt(timeChecker, step, pathName, pathDir="./yoloresult"):
     timeChecker = list(set(timeChecker))
     timeChecker.sort()
     pathOut = pathDir + '/' +pathName + "_"+ str(step) + '.txt'
-    f = open(pathOut, 'w')
+    f = open(pathOut, 'w+')
     f.write(str(timeChecker))
     f.close()
 

@@ -2,12 +2,12 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 # tensorflow와 tf.keras를 임포트합니다
 
-from tensorflow import keras
-import tensorflow as tf
+#from tensorflow import keras
+#import tensorflow as tf
 
 # 헬퍼(helper) 라이브러리를 임포트합니다
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import cv2
 import os
 import functools
@@ -18,7 +18,7 @@ import shutil
 import gc
 
 # StratifiedKFold
-from sklearn.model_selection import StratifiedKFold
+#from sklearn.model_selection import StratifiedKFold
 
 # root_data_path는 데이터셋 디렉토리
 root_data_path = '/content/DeepFashion2/'

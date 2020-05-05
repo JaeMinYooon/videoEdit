@@ -105,7 +105,7 @@ def color(hexCode, cutImage=""):
     mask = cv2.inRange(hsv, lower, upper)
     p = percent(mask)
     #print("percent  :  " , p)
-    if p >= 20:
+    if p >= 5:
         return True
     else:
         return False

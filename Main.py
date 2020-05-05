@@ -48,12 +48,12 @@ def noServer():
     #models.append(top_model)
     #models.append(bottom_model)
 
-    exStr = "person&long&long&0022ff&0022ff&airport"
+    exStr = "person&long&long&ffe600&000100&aaCCTV"
     #exStr = "backpack&./inputvideo/backpack.mp4"
     VideoMake.videoMakeWithYolo(exStr, models)
 
     # 사진 테스트용 그냥 주석풀고 실행하면됨
-    #exStr = "person&long&long&000000&000000&./park.jpg"
+    # exStr = "handbag&long&long&000000&000000&./dgggg.png"
     #exStr = "dog&./sample.jpg"
     #ex.exVideoMake(exStr, model)
 
@@ -65,10 +65,10 @@ def main():
     weightsfile = "videoMake/cfg/yolov3new.weights"
     model = darknet.Darknet(cfgfile)
     model.load_weights(weightsfile)
-    models.append(model)
+    #models.append(model)
 
     PYPORT = 5803
-    PYIP = "192.168.0.38"
+    PYIP = "192.168.0.47"
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((PYIP, PYPORT))
 
@@ -94,7 +94,7 @@ def main():
             mappingName = mappingName[len(mappingName)-1]
 
             thread = threading.Thread(target=VideoMake.videoMakeWithYolo,
-                                      args=(strData, models, complete, lock))
+                                      args=(strData, model, complete, lock))
 
             thread.start()
 
@@ -171,6 +171,8 @@ def main():
 
             # exit 보내야함.
             client_socket.sendall("exit".encode())
+        complete[0] = 0
 
 if __name__ == '__main__':
     noServer()
+    #main()
