@@ -48,7 +48,7 @@ def noServer():
     #models.append(top_model)
     #models.append(bottom_model)
 
-    exStr = "person&long&long&ffe600&000100&aaCCTV"
+    exStr = "person&long&long&ffe600&010000&aaCCTV"
     #exStr = "backpack&./inputvideo/backpack.mp4"
     VideoMake.videoMakeWithYolo(exStr, models)
 
