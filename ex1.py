@@ -45,7 +45,7 @@ def color(hexCode, cutImage=""):
     #img = cv2.imread('sample.jpg')
     img = cutImage
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
+    hsv = brightness(hsv)
     #lower = np.array([0, 0, 255]) # 직접 넣을 때 사용 할 코드
     #upper = np.array([0, 0, 255])
 
@@ -105,13 +105,12 @@ def color(hexCode, cutImage=""):
     mask = cv2.inRange(hsv, lower, upper)
     p = percent(mask)
     #print("percent  :  " , p)
-    if p >= 1:
+    if p >= 15:
         return True
     else:
         return False
 
-
-
+'''
     new_img = cv2.bitwise_and(img, img, mask=mask)
 
     cv2.imshow('mask', mask) # 색칠 된 자리 가 어딘지 알려주는 곳
@@ -124,6 +123,18 @@ def color(hexCode, cutImage=""):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     #print("percent " +str(p))
+'''
+
+def brightness(img):  # 지금 0.4 - 60 완벽 0.3 - 50 까지 완벽.
+    image = img
+
+
+    ## 밝게하기(원본보다 100만큼 밝게(최대 255))
+    control = np.ones(image.shape, dtype="uint8") * 20
+    brightnessImage = cv2.add(image, control)
+    img = brightnessImage
+    return img
+
 
 def percent(mask):
     img_h = mask.shape[0]
@@ -134,5 +145,9 @@ def percent(mask):
     #print("res : " , detectRes)
     total = detectMask.shape[0] * detectMask.shape[1]
     #print("total : ", total)
+    #cv2.imshow("mask", detectMask)
+    #cv2.imshow("res", detectRes)
+    #cv2.imshow("total", total)
+    #cv2.waitKey(0)
     return int( (detectRes / total) * 100)
 #main()

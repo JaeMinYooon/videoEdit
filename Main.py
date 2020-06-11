@@ -3,6 +3,8 @@ import socket
 import time
 import threading
 import ex
+import torch
+import sys
 
 complete = [0]
 lock = threading.Lock()
@@ -45,30 +47,54 @@ def noServer():
     #bottom_model = clothClassification.create_model(bottom_class_num, "/videoMake/bottom/my_checkpoint_bottom")
     print("top bottom load time : ", time.time()-start)
     models.append(model)
+    modelInit(models[0])
     #models.append(top_model)
     #models.append(bottom_model)
 
-    exStr = "person&long&long&ffe600&010000&aaCCTV"
+    exStr = "person&long&long&00eeff&a&short"
     #exStr = "backpack&./inputvideo/backpack.mp4"
     VideoMake.videoMakeWithYolo(exStr, models)
 
     # 사진 테스트용 그냥 주석풀고 실행하면됨
     # exStr = "handbag&long&long&000000&000000&./dgggg.png"
-    #exStr = "dog&./sample.jpg"
-    #ex.exVideoMake(exStr, model)
+    #exStr = "person&long&long&#000000&#000000&./1.jpg"
+    #ex.exVideoMake(exStr, models)
+
+def modelInit(model):
+    reso = 416
+    CUDA = torch.cuda.is_available()
+
+    # Set up the neural network
+    print("Loading network.....")
+    # model = Darknet(cfgfile)
+    # model.load_weights(weightsfile)
+    print("Network successfully loaded")
+
+    model.net_info["height"] = reso
+
+    # If there's a GPU availible, put the model on GPU
+    if CUDA:
+        print("CUDA STATUS : " + str(CUDA))
+        print(torch.cuda.get_device_name(0))
+        model.cuda()
+
+    # Set the model in evaluation mode
+    model.eval()
+
 
 def main():
 
     # 모델 로드 해놓고 실행하는데 이거 좀 다듬어야할듯
     # 가장 최신 V3
-    cfgfile = "videoMake/cfg/yolov3new.cfg"
-    weightsfile = "videoMake/cfg/yolov3new.weights"
+    cfgfile = "videoMake/cfg/yolov3.cfg"
+    weightsfile = "videoMake/cfg/yolov3.weights"
     model = darknet.Darknet(cfgfile)
     model.load_weights(weightsfile)
-    #models.append(model)
+    models.append(model)
+    modelInit(models[0])
 
-    PYPORT = 5803
-    PYIP = "192.168.0.47"
+    PYPORT = 5804
+    PYIP = ""
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((PYIP, PYPORT))
 
@@ -85,94 +111,106 @@ def main():
 
         recStartStr = data.decode()
         print(recStartStr)
-        if recStartStr == "start":
+        if recStartStr == "start":   # 첫번째 보내는 것
+            data = "Pready"
+            client_socket.sendall(data.encode())
+
             data = client_socket.recv(1024)
             strData = data.decode()
-            # "person&long&long&0022ff&0022ff&airport"
-            print("string : ", strData)
-            mappingName = strData.split("&")
-            mappingName = mappingName[len(mappingName)-1]
 
             thread = threading.Thread(target=VideoMake.videoMakeWithYolo,
-                                      args=(strData, model, complete, lock))
-
+                                      args=(strData, models, complete, lock))
             thread.start()
 
-            i = 0
-            while True:
-                print("밀린 욜로 파일 : ", complete[0])
-                if i >= 5 :
-                    print("전체 파일 전송 종료")
-                    break
-                if complete[0] >= 1:
-                    lock.acquire()
-                    try:
-                        complete[0] = complete[0] -1
-                        print("보내고 남은 양 : ", complete[0])
-                    finally:
-                        lock.release()
+            mappingName = strData.split("&")
+            mappingName = mappingName[len(mappingName) - 1]
+            client_socket.sendall(mappingName.encode())
 
+            data = client_socket.recv(1024)
 
-                    start = time.time()
+            print("################### = " + data.decode())
 
-                    # ------------    시간Text파일 전송    ---------------
-                    sendStartStr = "start"
-                    client_socket.sendall(sendStartStr.encode())
+            if data.decode() == mappingName + "1":
+                print(data.decode())
 
-                    #filename = "yoloed_" + str(i + 1) + ".txt"
-                    filename = mappingName + "_"+ str(i+1)+ ".txt"
-                    client_socket.sendall(filename.encode())
+                while True:
+                    print("밀린 욜로 파일 : ", complete[0])
 
-                    print("filename", filename)
-                    data = client_socket.recv(1024)
-                    if data.decode() == "go":
-                        # yoloed_file = open(filename, 'rb')
-                        with open("./yoloresult/" + filename, 'rb') as yoloed_file:
+                    if complete[0] >= 1:
+                        lock.acquire()
+                        try:
+                            complete[0] = complete[0] - 1
+                            print("보내고 남은 양 : ", complete[0])
+                        finally:
+                            lock.release()
+                        #파일 읽고 보내고
+                        with open("./yoloresult/" + mappingName + "1.mp4", 'rb') as yoloed_file:
                             filePack = yoloed_file.read(1024)
                             print('sending....')
                             while filePack:
                                 client_socket.sendall(filePack)
                                 filePack = yoloed_file.read(1024)
 
-                            data = client_socket.recv(1024)
-                            if data.decode() == "recieve":
-                                client_socket.sendall("fileend".encode())
-                    # ------------    Yolo 동영상 전송    ---------------
-                    data = client_socket.recv(1024)
-                    if data.decode() == "mp4go":
-                        print("mp4go")
-                        sendStartStr = "start"
-                        client_socket.sendall(sendStartStr.encode())
-                        data = client_socket.recv(1024)
-                        if data.decode() == "filenamego":
-                            #filename = "yoloed_" + str(i + 1) + ".mp4"
-                            filename = mappingName + "_" + str(i+1) + ".mp4"
-                            client_socket.sendall(filename.encode())
+                        time.sleep(2)
+                        data = "end"
+                        client_socket.sendall(data.encode())
+                        break
+                    else:
+                        time.sleep(1)
 
-                            print("filename", filename)
-                        data = client_socket.recv(1024)
-                        if data.decode() == "go":
-                            # yoloed_file = open(filename, 'rb')
-                            with open("./yoloresult/" + filename, 'rb') as yoloed_file:
-                                filePack = yoloed_file.read(1024)
-                                print('sending....')
-                                while filePack:
-                                    client_socket.sendall(filePack)
-                                    filePack = yoloed_file.read(1024)
+        elif recStartStr == "imgstart":
+            data = "imgready"
+            client_socket.sendall(data.encode())
 
-                                data = client_socket.recv(1024)
-                                if data.decode() == "recieve":
-                                    client_socket.sendall("fileend".encode())
-                    print("********** : " ,time.time()-start)
+            #data = client_socket.recv(1024)
+            #strData = data.decode()
 
-                    i += 1
+            #thread = threading.Thread(target=VideoMake.videoMakeWithYolo, args=(strData, models, complete, lock))
+            #thread.start()
+
+            with open("./inputvideo/inputimg.jpg", 'wb') as yoloed_file:
+                filePack = client_socket.recv(1024)
+                print('receving....')
+                while filePack:
+                    #client_socket.sendall(filePack)
+                    yoloed_file.write(filePack)
+                    filePack = client_socket.recv(1024)
+            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+
+        else :
+            print(data.decode())
+
+            #data = client_socket.recv(1024)
+            mappingName = data.decode()
+            mappingType = mappingName.split(".")[1]
+            while True:
+                print("밀린 욜로 파일 : ", complete[0])
+
+                if complete[0] >= 1:
+                    lock.acquire()
+                    try:
+                        #if mappingType == "mp4":
+                        complete[0] = complete[0] - 1
+                        print("보내고 남은 양 : ", complete[0])
+                    finally:
+                        lock.release()
+                    #파일 읽고 보내고
+                    with open("./yoloresult/" + mappingName, 'rb') as yoloed_file:
+                        filePack = yoloed_file.read(1024)
+                        print('sending....')
+                        while filePack:
+                            client_socket.sendall(filePack)
+                            filePack = yoloed_file.read(1024)
+
+                    time.sleep(2)
+                    data = "end"
+                    client_socket.sendall(data.encode())
+                    break
                 else:
                     time.sleep(1)
 
-            # exit 보내야함.
-            client_socket.sendall("exit".encode())
-        complete[0] = 0
+
 
 if __name__ == '__main__':
-    noServer()
-    #main()
+    #noServer()
+    main()

@@ -9,15 +9,27 @@ classes = load_classes("videoMake/data/coco.names")
 upperHexCode= ""
 lowerHexCode= ""
 
-def exVideoMake(exStr,model):
+def exVideoMake(exStr,models):
 
     # kind에따라 찾을 물체를 정함. (ex :  person=0, dog=16)
     inputString = exStr.split('&')
-    kind = classes.index(inputString[0])
-    if kind==0:
+    if inputString[0] != "-1":
+        kind = classes.index(inputString[0])
+    else:
+        kind = -1
+
+    # 모델 미리 로드된거 배열로 받음
+    model = models[0]
+    # if len(models) >= 2:
+    #     classifyModels.append(models[1])
+    #     classifyModels.append(models[2])
+
+    if kind == 0:
+        top = inputString[1]
+        bottom = inputString[2]
+        global lowerHexCode
         global upperHexCode
         upperHexCode = inputString[3]
-        global lowerHexCode
         lowerHexCode = inputString[4]
 
     videofile = inputString[len(inputString)-1]
@@ -106,7 +118,8 @@ def exVideoMake(exStr,model):
     #    for i, out in enumerate(output):
     #        if findRes[i]:
     #            write(out, frame)
-
+    path = "./yoloresult/exYolo.jpg"
+    cv2.imwrite(path, frame)
     cv2.imshow("dd",frame)
     cv2.waitKey(0)
     print("Total Time : ", (time.time() - start))
@@ -127,15 +140,16 @@ def write(x, results):
     # label = label1 + str(label2)
     label = label1
 
-    cv2.rectangle(img, c1, c2, color, 1)  # 객체 네모칸 쳐주는 코드
+    cv2.rectangle(img, c1, c2, color, 2)  # 객체 네모칸 쳐주는 코드
     t_size = cv2.getTextSize(label, cv2.FONT_ITALIC, 0.3, 1)[0]  # 폰트 바꾸는 코드
     # c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
     # person 만 나오게 사이즈 조절함.
-    c2 = c1[0] + t_size[0], c1[1] - t_size[1]
+    c2 = c1[0] + t_size[0]*5, c1[1] - t_size[1]*5
 
     cv2.rectangle(img, c1, c2, color, -1)  # 글자 네모칸 쳐주는 코드
     # cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_ITALIC, 1, [225, 255, 255], 1);
-    cv2.putText(img, label, (c1[0], c1[1]), cv2.FONT_ITALIC, 0.3, [225, 255, 255], 1);
+    # 이미지, 글자, 시작위치, 폰트, 글자크기, 색bgr, 두께
+    cv2.putText(img, label, (c1[0], c1[1]-3), cv2.FONT_ITALIC, 1.5, [225, 255, 255], 3);
     return img
 
 def cutNotPerson(x, img):

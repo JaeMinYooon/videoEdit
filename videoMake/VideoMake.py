@@ -13,7 +13,6 @@ import random
 from ex1 import color
 from videoMake.clothClassification import *
 
-
 personNum = 1
 classes = load_classes("videoMake/data/coco.names")
 # 몇분할 할껀지 이거 숫자 변경해주면 됨
@@ -21,6 +20,7 @@ default_divisionNum = 5
 # 욜로 분할 - ( 5 주면 1욜로+4건너뜀)
 default_yoloNum = 5
 classifyModels = []
+
 
 def videoMakeWithYolo(exStr, models, complete=0, lock=False):
     # kind에따라 찾을 물체를 정함. (ex :  person=0, dog=16)
@@ -43,9 +43,24 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
         bottom = inputString[2]
         upperHexCode = inputString[3]
         lowerHexCode = inputString[4]
-    filename = inputString[len(inputString)-1]
-    videofile = "./inputvideo/"+filename+".mp4"
+    filename = inputString[len(inputString) - 1]
+    videofile = "./inputvideo/" + filename + ".mp4"
 
+    num_classes = 80
+    bs = 1
+    confidence = 0.5
+    nms_thresh = 0.4
+    reso = 416
+
+    batch_size = int(bs)
+    confidence = float(confidence)
+    nms_thesh = float(nms_thresh)
+    start = 0
+    CUDA = torch.cuda.is_available()
+    inp_dim = int(model.net_info["height"])
+    assert inp_dim % 32 == 0
+    assert inp_dim > 32
+    '''
     num_classes = 80
     bs = 1
     confidence = 0.5
@@ -57,7 +72,7 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
     confidence = float(confidence)
     nms_thesh = float(nms_thresh)
     start = 0
-    CUDA = torch.cuda.is_available()
+
 
     # Set up the neural network
     print("Loading network.....")
@@ -78,7 +93,7 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
 
     # Set the model in evaluation mode
     model.eval()
-
+    '''
     # Detection phase
 
     print(videofile)
@@ -116,7 +131,7 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
             # convert_end = frameBreakForSave
             convert_start = 0
             convert_end = len(framesForVideo)
-            convert_step = int(frameBreakForSave/frameStepForSave)
+            convert_step = int(frameBreakForSave / frameStepForSave)
 
             print("convert_step ", convert_step)
             print("convert_end ", convert_end)
@@ -128,22 +143,24 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
                 lock.acquire()
                 try:
                     print("Save (Server True)")
-                    complete[0] = complete[0] + 1
+                    complete[0] = complete[0] + 2
                     print("++complete : ", complete[0])
                     stepDetectTimeToTxt(timeChecker, convert_step, filename)
-                    timeChecker.clear()
-                    stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, filename, fps=default_fps)
+                    #timeChecker.clear()
+                    stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, filename,
+                                     fps=default_fps)
                     framesForVideo.clear()
                 finally:
                     lock.release()
             else:
                 print("Save (Server False)")
                 stepDetectTimeToTxt(timeChecker, convert_step, filename)
-                timeChecker.clear()
-                stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, filename, fps=default_fps)
+                #timeChecker.clear()
+                stepFrameToVideo(framesForVideo, convert_start, convert_end - 1, convert_step, filename,
+                                 fps=default_fps)
                 framesForVideo.clear()
             frameBreakForSave += frameStepForSave
-            #if convert_step == 3:
+            # if convert_step == 3:
             #    exit(0)
 
         if ret:
@@ -161,14 +178,15 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
                     img = img.cuda()
 
                 with torch.no_grad():
-                    #output = model(Variable(img, volatile=True), CUDA)
+                    # output = model(Variable(img, volatile=True), CUDA)
                     output = model(Variable(img, requires_grad=True), CUDA)
                 output = write_results(output, kind, confidence, num_classes, nms_conf=nms_thesh)
 
                 if type(output) == int:
                     frameCount += 1
-                    print("FPS of the video is {:5.4f}".format(frameCount / (time.time() - start)) + " Yolo Not Founded F.C = "+str(frameCount))
-                    #cv2.imshow("frame", frame)
+                    print("FPS of the video is {:5.4f}".format(
+                        frameCount / (time.time() - start)) + " Yolo Not Founded F.C = " + str(frameCount))
+                    # cv2.imshow("frame", frame)
                     framesForVideo.append(frame)
                     key = cv2.waitKey(1)
 
@@ -188,8 +206,8 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
                     output[i, [1, 3]] = torch.clamp(output[i, [1, 3]], 0.0, im_dim[i, 0])
                     output[i, [2, 4]] = torch.clamp(output[i, [2, 4]], 0.0, im_dim[i, 1])
 
-                #classes = load_classes('videoMake/data/coco.names')
-                #colors = pkl.load(open("videoMake/pallete", "rb"))
+                # classes = load_classes('videoMake/data/coco.names')
+                # colors = pkl.load(open("videoMake/pallete", "rb"))
 
                 # output = 1프레임의 욜로 결과 배열.      ex) 3개발견 0] dog   1]  cat  2] person
                 # findRes = 1프레임의 욜로 결과 사람인지? ex) 3개발견 0] false 1] false 2] true
@@ -213,10 +231,10 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
 
             # 입력 종류(dog or person)에 따라 거른 욜로 결과를 프레임에 그림
             if type(output) != int:
-                timeChecker.append(int(cap.get(cv2.CAP_PROP_POS_MSEC)/1000))
                 # type == int => 뜻은 욜로 아무것도 못찾았다임
                 for i, out in enumerate(output):
                     if findRes[i]:
+                        timeChecker.append(int(cap.get(cv2.CAP_PROP_POS_MSEC) / 1000))
                         write(out, frame)
 
             framesForVideo.append(frame)
@@ -225,10 +243,11 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
             if key & 0xFF == ord('q'):
                 break
             frameCount += 1
-            #print(time.time() - start)
+            # print(time.time() - start)
 
-            #if frameCount % 5 == 0:
-            print("FPS of the video is {:5.2f}".format(frameCount / (time.time() - start)) + str(" FrameCount ")+ str(frameCount))
+            # if frameCount % 5 == 0:
+            print("FPS of the video is {:5.2f}".format(frameCount / (time.time() - start)) + str(" FrameCount ") + str(
+                frameCount))
         else:
             print(" 동영상 종료.")
             break
@@ -237,31 +256,33 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
     # frameToWholeVideo(framesForVideo, fps=default_fps)
     # frameToVideo(framesForVideo, 5)
 
+
 def write(x, results):
     c1 = tuple(x[1:3].int())
     c2 = tuple(x[3:5].int())
     img = results
     cls = int(x[-1])
-    #color = random.choice(colors)
+    # color = random.choice(colors)
     color = (255, 0, 0)
     # label1 은 클래스가 뭔지 label2는 확률나오는거
     label1 = "{0}".format(classes[cls])
     label2 = float("{0:0.4f}".format((x[5])))
     # label2 = torch.item(float((x[5])[cls]))
 
-    #label = label1 + str(label2)
+    # label = label1 + str(label2)
     label = label1
 
     cv2.rectangle(img, c1, c2, color, 1)  # 객체 네모칸 쳐주는 코드
     t_size = cv2.getTextSize(label, cv2.FONT_ITALIC, 0.3, 1)[0]  # 폰트 바꾸는 코드
-    #c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
+    # c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
     # person 만 나오게 사이즈 조절함.
     c2 = c1[0] + t_size[0], c1[1] - t_size[1]
 
     cv2.rectangle(img, c1, c2, color, -1)  # 글자 네모칸 쳐주는 코드
-    #cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_ITALIC, 1, [225, 255, 255], 1);
+    # cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4), cv2.FONT_ITALIC, 1, [225, 255, 255], 1);
     cv2.putText(img, label, (c1[0], c1[1]), cv2.FONT_ITALIC, 0.3, [225, 255, 255], 1);
     return img
+
 
 def cutNotPerson(x, img):
     c1 = tuple(x[1:3].int())
@@ -272,9 +293,10 @@ def cutNotPerson(x, img):
     h = y_max - y
     img_cut = img[y:y + h, x:x + w]
     global personNum
-    path = "./cuttednotperson/test" +str(personNum)+".jpg"
+    path = "./cuttednotperson/test" + str(personNum) + ".jpg"
     personNum += 1
     cv2.imwrite(path, img_cut)
+
 
 # 이미지에서 좌표로 박스 자름
 def cutPerson(x, img, upperHexCode, lowerHexCode, top, bottom):
@@ -284,12 +306,12 @@ def cutPerson(x, img, upperHexCode, lowerHexCode, top, bottom):
     x_max, y_max = c2
     w = x_max - x
     h = y_max - y
-    img_cut = img[y:y+h, x:x+w]
+    img_cut = img[y:y + h, x:x + w]
 
     global personNum
-    path = "./cuttedperson/person" +str(personNum)+".jpg"
-    upperPath = "./cuttedupper/upper" +str(personNum)+".jpg"
-    lowerPath = "./cuttedlower/lower" +str(personNum)+".jpg"
+    path = "./cuttedperson/person" + str(personNum) + ".jpg"
+    upperPath = "./cuttedupper/upper" + str(personNum) + ".jpg"
+    lowerPath = "./cuttedlower/lower" + str(personNum) + ".jpg"
 
     upperFind, cutToUpper = cutUpperBody(img_cut, upperHexCode)
     if not bool(upperFind):
@@ -319,22 +341,25 @@ def cutPerson(x, img, upperHexCode, lowerHexCode, top, bottom):
 
     return True
 
+
 def classification(cutImg, cloth, model, flag):
     find = predict(cutImg, cloth, model, flag)
     if not find:
         return int(0), ""
     return int(1)
 
+
 def cutUpperBody(img, upperHexCode):
     img_h = img.shape[0]
     img_w = img.shape[1]
-    cutToUpper = img[int((img_h/10)*1): int((img_h/10)*6), : img_w]
+    cutToUpper = img[int((img_h / 10) * 1): int((img_h / 10) * 6), : img_w]
     # global upperHexCode
     find = color(upperHexCode, cutToUpper)
     if not find:
         return int(0), ""
-    #print("Upper True")
-    return int(1) , cutToUpper
+    # print("Upper True")
+    return int(1), cutToUpper
+
 
 def cutLowerBody(img, lowerHexCode):
     img_h = img.shape[0]
@@ -345,30 +370,32 @@ def cutLowerBody(img, lowerHexCode):
     find = color(lowerHexCode, cutToLower)
     if not find:
         return int(0), ""
-    #print("Lower True")
+    # print("Lower True")
     return int(1), cutToLower
+
 
 # 발견된 시간 텍스트로 저장
 def stepDetectTimeToTxt(timeChecker, step, pathName, pathDir="./yoloresult"):
     # list_a = list(map(int, list_a))
     timeChecker = list(set(timeChecker))
     timeChecker.sort()
-    pathOut = pathDir + '/' +pathName + "_"+ str(step) + '.txt'
+    pathOut = pathDir + '/' + pathName + str(step) + '.txt'
     f = open(pathOut, 'w+')
     f.write(str(timeChecker))
     f.close()
+
 
 # 영상 중간중간 yolo 결과로 저장 하는 메소드
 def stepFrameToVideo(inputs, start, end, step, pathName, fps=25, pathDir="./yoloresult"):
     height, width, layers = inputs[0].shape
     size = (width, height)
-    pathOut = pathDir + '/' + pathName + "_" + str(step) + '.mp4'
-    #pathOut = pathDir + '/yoloed_' + str(step) + '.avi'
-    #out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
-    #out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)
+    pathOut = pathDir + '/' + pathName + str(step) + '.mp4'
+    # pathOut = pathDir + '/yoloed_' + str(step) + '.avi'
+    # out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
+    # out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)
     out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
     count = start
-    print("inputs size =  ",len(inputs))
+    print("inputs size =  ", len(inputs))
     print("start num = ", start)
     print("end num = ", end)
     try:
@@ -380,18 +407,20 @@ def stepFrameToVideo(inputs, start, end, step, pathName, fps=25, pathDir="./yolo
     finally:
         out.release()
 
+
 def frameToWholeVideo(inputs, fps=25, pathDir="./yoloresult"):
     height, width, layers = inputs[0].shape
     size = (width, height)
     pathOut = pathDir + '/yoloVideo.mp4'
-    #pathOut = pathDir + '/yoloVideo.avi'
-    #out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)avc1
-    #out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)
+    # pathOut = pathDir + '/yoloVideo.avi'
+    # out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)avc1
+    # out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)
     out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
     for i in range(len(inputs)):
         # writing to a image array
         out.write(inputs[i])
     out.release()
+
 
 def frameToVideo(inputs, cutNum, fps=25, pathDir="./yoloresult"):
     results = []
@@ -404,8 +433,8 @@ def frameToVideo(inputs, cutNum, fps=25, pathDir="./yoloresult"):
     cuttedLen = int(float(len(inputs) / cutNum))
 
     for i in range(cutNum):
-        pathOut = pathDir + '/video' + str(i + 1) + '.avi'
-        out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
+        pathOut = pathDir + '/video' + str(i + 1) + '.mp4'
+        out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
         while True:
             if count == curLen:
                 break
@@ -415,7 +444,7 @@ def frameToVideo(inputs, cutNum, fps=25, pathDir="./yoloresult"):
             out.write(inputs[count])
             count += 1
 
-            #print(count, curLen, cuttedLen)
+            # print(count, curLen, cuttedLen)
 
         curLen += cuttedLen
 
