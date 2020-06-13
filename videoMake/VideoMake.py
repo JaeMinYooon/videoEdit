@@ -99,6 +99,7 @@ def videoMakeWithYolo(exStr, models, complete=0, lock=False):
     print(videofile)
 
     cap = cv2.VideoCapture(videofile)
+    #cap.set(cv2.CV_CAP_PROP_FOURCC, cv2.CV_FOURCC('H','2','6','4'))
     # cap = cv2.VideoCapture(0) # for webcam
 
     assert cap.isOpened(), 'Cannot capture source'
@@ -393,7 +394,7 @@ def stepFrameToVideo(inputs, start, end, step, pathName, fps=25, pathDir="./yolo
     # pathOut = pathDir + '/yoloed_' + str(step) + '.avi'
     # out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
     # out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)
-    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
+    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'H264'), fps, size)
     count = start
     print("inputs size =  ", len(inputs))
     print("start num = ", start)
@@ -415,7 +416,7 @@ def frameToWholeVideo(inputs, fps=25, pathDir="./yoloresult"):
     # pathOut = pathDir + '/yoloVideo.avi'
     # out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)avc1
     # out = cv2.VideoWriter(pathOut, 0x00000021, fps, size)
-    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
+    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'H264'), fps, size)
     for i in range(len(inputs)):
         # writing to a image array
         out.write(inputs[i])
@@ -434,7 +435,7 @@ def frameToVideo(inputs, cutNum, fps=25, pathDir="./yoloresult"):
 
     for i in range(cutNum):
         pathOut = pathDir + '/video' + str(i + 1) + '.mp4'
-        out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'mp4v'), fps, size)
+        out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'H264'), fps, size)
         while True:
             if count == curLen:
                 break
